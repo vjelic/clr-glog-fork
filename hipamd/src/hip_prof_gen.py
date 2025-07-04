@@ -291,8 +291,8 @@ def parse_content(inp_file_p, api_map, out):
           eta_types = filtr_api_types(eta_args)
           if (api_types == eta_types) or ((types_check_mode == 0) and (not api_name in out)):
             # API is already found and not is mismatched
-            if (api_name in out):
-              fatal("API redefined \"" + api_name + "\", record \"" + record + "\"")
+            #if (api_name in out):
+            #  fatal("API redefined \"" + api_name + "\", record \"" + record + "\"")
             # Set valid public API found flag
             api_valid = 1
             # Set output API map with API arguments list

@@ -44,6 +44,10 @@ amd::Memory* getMemoryObject(const void* ptr, size_t& offset, size_t size) {
     // If memObj not found, use arena_mem_obj. arena_mem_obj is null, if HMM is disabled.
     memObj = (hip::getCurrentDevice()->asContext()->svmDevices()[0])->GetArenaMemObj(
         ptr, offset, size);
+    // fprintf(stderr, "Found %p in arena! -- %p\n", ptr, memObj);
+  } else{
+    // fprintf(stderr, "Found %p in mmap -- dev  %d\n", ptr,
+    //       memObj->getUserData().deviceId);
   }
 
   // On Windows, when using hipHostRegister, the map may contain a single memory object for
@@ -107,6 +111,8 @@ hipError_t ihipFree(void *ptr) {
     // Wait on the device, associated with the current memory object during allocation
     auto device_id = memory_object->getUserData().deviceId;
     g_devices[device_id]->SyncAllStreams();
+
+    // fprintf(stderr, "Freeing %p for device %d\n", ptr, device_id);
 
     // Find out if memory belongs to any memory pool
     if (!g_devices[device_id]->FreeMemory(memory_object, nullptr)) {
@@ -343,6 +349,7 @@ hipError_t ihipMalloc(void** ptr, size_t sizeBytes, unsigned int flags)
   const auto& dev_info = amdContext->devices()[0]->info();
   hip::getCurrentDevice()->SetActiveStatus();
 
+ 
   if (dev_info.maxPhysicalMemAllocSize_ < sizeBytes) {
     return hipErrorOutOfMemory;
   }
@@ -353,6 +360,9 @@ hipError_t ihipMalloc(void** ptr, size_t sizeBytes, unsigned int flags)
 
   *ptr = amd::SvmBuffer::malloc(*amdContext, flags, sizeBytes, dev_info.memBaseAddrAlign_,
               useHostDevice ? curDevContext->svmDevices()[0] : nullptr);
+
+  //  fprintf(stderr, "Allocated %p dev: %d --- %p\n", 
+  //       *ptr, hip::getCurrentDevice()->deviceId(), nullptr);
 
   if (*ptr == nullptr) {
     if (!useHostDevice) {
@@ -366,10 +376,14 @@ hipError_t ihipMalloc(void** ptr, size_t sizeBytes, unsigned int flags)
     }
     return hipErrorOutOfMemory;
   }
+
+ 
   size_t offset = 0; //this is ignored
   amd::Memory* memObj = getMemoryObject(*ptr, offset);
   //saves the current device id so that it can be accessed later
   memObj->getUserData().deviceId = hip::getCurrentDevice()->deviceId();
+
+
   return hipSuccess;
 }
 

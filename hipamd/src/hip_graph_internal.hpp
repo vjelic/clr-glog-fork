@@ -144,6 +144,24 @@ struct hipGraphNodeDOTAttribute {
 
   virtual std::string GetLabel(hipGraphDebugDotFlags flag) { return label_; }
 
+  std::string GetColorAndShortenLabel(std::string *label) {
+    std::string color;
+    if (label->find("fusion") != std::string::npos ||
+          label->find("wrapped") != std::string::npos) {
+      color = "lightgreen";
+    } else if (label->find("nccl") != std::string::npos) {
+      color = "magenta";
+    } else if (label->find("Cijk") != std::string::npos ||
+                 label->find("Bjlk") != std::string::npos ||
+                 label->find("Alik") != std::string::npos) {
+      color = "orange";
+    }
+    if (label->length() > 32) {
+        *label = label->substr(0,30) + "..";
+    }
+    return color;
+  }
+
   virtual void PrintAttributes(std::ostream& out, hipGraphDebugDotFlags flag) {}
 };
 
@@ -444,18 +462,25 @@ struct GraphNode : public hipGraphNodeDOTAttribute {
     return isGraphCapture;
   }
   virtual void PrintAttributes(std::ostream& out, hipGraphDebugDotFlags flag) override {
+
+    auto label = GetLabel(flag),
+         color = GetColorAndShortenLabel(&label);
+
     out << "[";
     out << "style";
     out << "=\"";
     out << style_;
     out << "\"";
+    if (!color.empty()) {
+      out << "color=\"" << color << "\"";
+    }
     out << "shape";
     out << "=\"";
     out << GetShape(flag);
     out << "\"";
     out << "label";
     out << "=\"";
-    out << GetLabel(flag);
+    out << label;
     if (DEBUG_HIP_GRAPH_DOT_PRINT) {
       out << "\nStreamId:" << stream_id_;
       out << "\nSignalIsRequired: " << ((signal_is_required_) ? "true" : "false");
@@ -639,7 +664,7 @@ struct Graph {
   Graph* clone(std::unordered_map<Node, Node>& clonedNodes) const;
   Graph* clone() const;
   void GenerateDOT(std::ostream& fout, hipGraphDebugDotFlags flag) {
-    fout << "subgraph cluster_" << GetID() << " {" << std::endl;
+    // fout << "subgraph cluster_" << GetID() << " {" << std::endl;
     fout << "label=\"graph_" << GetID() <<"\"graph[style=\"dashed\"];\n";
     for (auto node : vertices_) {
       node->GenerateDOTNode(GetID(), fout, flag);
@@ -648,7 +673,7 @@ struct Graph {
     for (auto& node : vertices_) {
       node->GenerateDOTNodeEdges(GetID(), fout, flag);
     }
-    fout << "}" << std::endl;
+    // fout << "}" << std::endl;
     for (auto node : vertices_) {
       node->GenerateDOT(fout, flag);
     }
@@ -936,6 +961,10 @@ class GraphKernelNode : public GraphNode {
   }
 
   void PrintAttributes(std::ostream& out, hipGraphDebugDotFlags flag) override {
+
+    auto label = GetLabel(flag),
+         color = GetColorAndShortenLabel(&label);
+
     out << "[";
     out << "style";
     out << "=\"";
@@ -944,13 +973,16 @@ class GraphKernelNode : public GraphNode {
      flag == hipGraphDebugDotFlagsKernelNodeAttributes)
         ? out << "\n"
         : out << "\"";
+    if (!color.empty()) {
+      out << "color=\"" << color << "\"";
+    }
     out << "shape";
     out << "=\"";
     out << GetShape(flag);
     out << "\"";
     out << "label";
     out << "=\"";
-    out << GetLabel(flag);
+    out << label;
     if (DEBUG_HIP_GRAPH_DOT_PRINT) {
       out << "StreamId:" << stream_id_;
       out << "\nSignalIsRequired: " << ((signal_is_required_) ? "true" : "false");
@@ -1002,7 +1034,8 @@ class GraphKernelNode : public GraphNode {
       label = buffer;
     }
     else {
-      label = std::to_string(GetID()) + "\n" + function->name() + "\n";
+      // label = std::to_string(GetID()) + "\n" + function->name() + "\n";
+      label = function->name();
     }
     return label;
   }
@@ -1103,7 +1136,7 @@ class GraphKernelNode : public GraphNode {
 
   GraphKernelNode(const hipKernelNodeParams* pNodeParams, const ihipExtKernelEvents* pEvents,
                   int coopKernel = 0)
-      : GraphNode(hipGraphNodeTypeKernel, "bold", "octagon", "KERNEL") {
+      : GraphNode(hipGraphNodeTypeKernel, "bold", "box", "KERNEL") {
     kernelParams_ = *pNodeParams;
     kernelEvents_ = { 0 };
     if (pEvents != nullptr) {
@@ -2019,10 +2052,19 @@ class GraphMemsetNode : public GraphNode {
       if (memObj != nullptr) {
         amd::Memory *memObjOri = getMemoryObject(memsetParams_.dst, discardOffset);
         if (memObjOri != nullptr) {
-          if (memObjOri->getUserData().deviceId != memObj->getUserData().deviceId) {
-            return hipErrorInvalidValue;
+          {
+            // fprintf(stderr, "============== orig: %p memObj: %p; dev = %d; new: %p memObj: %p dev = %d\n",
+            //   memsetParams_.dst, memObjOri, memObjOri->getUserData().deviceId, 
+            //   params->dst, memObj, memObj->getUserData().deviceId);
+
+          // if (memObjOri->getUserData().deviceId != memObj->getUserData().deviceId) 
+          //   return hipErrorInvalidValue;
           }
+        } else {
+          // fprintf(stderr, "memobjOri is null!\n");
         }
+      } else {
+        // fprintf(stderr, "memobj is null!\n");
       }
     }
     size_t sizeBytes;

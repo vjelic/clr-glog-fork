@@ -3505,11 +3505,14 @@ device::Signal* Device::createSignal() const {
   return new roc::Signal();
 }
 
+#define IMHERE fprintf(stderr, "%s:%d\n", __FILE__, __LINE__);
+
 // ================================================================================================
 amd::Memory* Device::GetArenaMemObj(const void* ptr, size_t& offset, size_t size) {
   // Only create arena_mem_object if CPU memory is accessible from HMM
   // or if runtime received an interop from another ROCr's client
   // Disable arena for XNACK
+
   hsa_amd_pointer_info_t ptr_info = {};
   ptr_info.size = sizeof(hsa_amd_pointer_info_t);
   if (!IsValidAllocation(ptr, size, &ptr_info)) {
@@ -3521,9 +3524,11 @@ amd::Memory* Device::GetArenaMemObj(const void* ptr, size_t& offset, size_t size
     if ((arena_mem_obj_ != nullptr) && !arena_mem_obj_->create(nullptr)) {
       LogError("Arena Memory Creation failed!");
       arena_mem_obj_->release();
+      IMHERE
       arena_mem_obj_ = nullptr;
     }
     if (arena_mem_obj_ == nullptr) {
+      IMHERE
       return arena_mem_obj_;
     }
   }
@@ -3533,7 +3538,6 @@ amd::Memory* Device::GetArenaMemObj(const void* ptr, size_t& offset, size_t size
       arena_mem_obj_->getDeviceMemory(*arena_mem_obj_->getContext().devices()[0])
           ->virtualAddress());
   offset = reinterpret_cast<size_t>(ptr) - reinterpret_cast<size_t>(dev_ptr);
-
   return arena_mem_obj_;
 }
 

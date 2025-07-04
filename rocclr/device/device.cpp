@@ -352,6 +352,8 @@ std::map<uintptr_t, amd::Memory*> MemObjMap::VirtualMemObjMap_ ROCCLR_INIT_PRIOR
 void MemObjMap::AddMemObj(const void* k, amd::Memory* v) {
   std::unique_lock lock(AllocatedLock_);
   auto rval = MemObjMap_.insert({ reinterpret_cast<uintptr_t>(k), v });
+  // fprintf(stderr, "%p: added memobj %p to mmap\n", 
+  //     k, v);
   if (!rval.second) {
     DevLogPrintfError("Memobj map already has an entry for ptr: 0x%x",
                       reinterpret_cast<uintptr_t>(k));
