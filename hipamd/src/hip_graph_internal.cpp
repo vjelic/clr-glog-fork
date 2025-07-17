@@ -21,6 +21,9 @@
 #include "hip_graph_internal.hpp"
 #include <queue>
 
+#define OKOK //fprintf(stderr, "%s:%d\n", __FILE__, __LINE__);
+#define XPUT(fmt, ...) //fprintf(stderr, fmt"\n", __VA_ARGS__)
+
 #define CASE_STRING(X, C)                                                                          \
   case X:                                                                                          \
     case_string = #C;                                                                              \
@@ -228,6 +231,7 @@ void Graph::ScheduleNodes() {
       // 1. Each extra root will get a new stream from the pool
       // 2. Streams will be recycled if the number of roots > streams
       stream_id = (stream_id + 1) % DEBUG_HIP_FORCE_GRAPH_QUEUES;
+      // XPUT("stream_id %d", stream_id);
     }
   }
 }
@@ -679,7 +683,6 @@ hipError_t GraphExec::Run(hipStream_t graph_launch_stream) {
   hipError_t status = hipSuccess;
 
   hip::Stream* launch_stream = hip::getStream(graph_launch_stream);
-
   if (flags_ & hipGraphInstantiateFlagAutoFreeOnLaunch) {
     if (!topoOrder_.empty()) {
       topoOrder_[0]->GetParentGraph()->FreeAllMemory(launch_stream);
@@ -695,6 +698,9 @@ hipError_t GraphExec::Run(hipStream_t graph_launch_stream) {
   }  else {
     repeatLaunch_ = true;
   }
+
+  XPUT("max_streams_ %d parallel_streams_ %d", 
+    clonedGraph_->max_streams_, (int)parallel_streams_.size());
 
   if (clonedGraph_->max_streams_ == 1 && instantiateDeviceId_ == launch_stream->DeviceId()) {
     if (DEBUG_CLR_GRAPH_PACKET_CAPTURE) {
